@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Tracking</string>
+    <string name="sync_now">Sync Now</string>
+</resources>
