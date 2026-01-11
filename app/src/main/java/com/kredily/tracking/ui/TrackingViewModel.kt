@@ -24,5 +24,11 @@ class TrackingViewModel(application: Application) : AndroidViewModel(application
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
 
     val pendingCount: Flow<Int> = repository.pendingCount()
+
+    /**---- Clean up network monitor to prevent memory leaks -----*/
+    override fun onCleared() {
+        super.onCleared()
+        networkMonitor.unregister()
+    }
 }
 

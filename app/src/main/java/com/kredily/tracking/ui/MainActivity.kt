@@ -1,6 +1,8 @@
 package com.kredily.tracking.ui
 
 import android.Manifest
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -17,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.kredily.tracking.databinding.ActivityMainBinding
 import com.kredily.tracking.service.LocationTrackingService
+import com.kredily.tracking.util.BatteryOptimizationHelper
 import com.kredily.tracking.util.SyncScheduler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -38,11 +41,26 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        /**------- Request battery optimization exemption ---------*/
+        if (!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
+            BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(this)
+        }
+
         if (!hasForegroundPermissions()) {
             requestForegroundPermissions()
         }
 
-        updateButtonUI(isTracking())
+        val shouldBeTracking = isTracking()
+        val isServiceRunning = isServiceRunning(LocationTrackingService::class.java)
+
+
+        if (shouldBeTracking && !isServiceRunning) {
+            setTracking(false)
+            updateButtonUI(false)
+        } else {
+            updateButtonUI(shouldBeTracking)
+        }
+
         observeViewModel()
 
         /**--------- Click Listener for Tracking -------------*/
@@ -210,15 +228,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun setTracking(active: Boolean) {
         getSharedPreferences(PREF_TRACKING, MODE_PRIVATE).edit {
-                putBoolean(
-                    KEY_IS_TRACKING,
-                    active
-                )
-            }
+            putBoolean(
+                KEY_IS_TRACKING, active
+            )
+        }
     }
 
     private fun updateButtonUI(isTracking: Boolean) {
         binding.btnTracking.text = if (isTracking) "Stop Tracking" else "Start Tracking"
+    }
+
+    /**-------------------  Check if service is running ----------------------*/
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val services = activityManager.getRunningServices(Integer.MAX_VALUE)
+        return services.any { it.service.className == serviceClass.name }
     }
 
 }
